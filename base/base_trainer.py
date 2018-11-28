@@ -12,6 +12,7 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
+
     def __init__(self, model, loss, metrics, optimizer, resume, config, train_logger=None):
         self.config = config
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -48,23 +49,29 @@ class BaseTrainer:
 
         # Save configuration file into checkpoint directory:
         ensure_dir(self.checkpoint_dir)
+
+        fileHandler = logging.FileHandler(os.path.join(self.checkpoint_dir, 'log.txt'))
+        self.logger.addHandler(fileHandler)
+
         config_save_path = os.path.join(self.checkpoint_dir, 'config.json')
         with open(config_save_path, 'w') as handle:
             json.dump(config, handle, indent=4, sort_keys=False)
 
         if resume:
             self._resume_checkpoint(resume)
-    
+
     def _prepare_device(self, n_gpu_use):
         """ 
         setup GPU device if available, move model into configured device
-        """ 
+        """
         n_gpu = torch.cuda.device_count()
         if n_gpu_use > 0 and n_gpu == 0:
-            self.logger.warning("Warning: There\'s no GPU available on this machine, training will be performed on CPU.")
+            self.logger.warning(
+                "Warning: There\'s no GPU available on this machine, training will be performed on CPU.")
             n_gpu_use = 0
         if n_gpu_use > n_gpu:
-            msg = "Warning: The number of GPU\'s configured to use is {}, but only {} are available on this machine.".format(n_gpu_use, n_gpu)
+            msg = "Warning: The number of GPU\'s configured to use is {}, but only {} are available on this machine.".format(
+                n_gpu_use, n_gpu)
             self.logger.warning(msg)
             n_gpu_use = n_gpu
         device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
@@ -77,14 +84,14 @@ class BaseTrainer:
         """
         for epoch in range(self.start_epoch, self.epochs + 1):
             result = self._train_epoch(epoch)
-            
+
             # save logged informations into log dict
             log = {'epoch': epoch}
             for key, value in result.items():
                 if key == 'metrics':
-                    log.update({mtr.__name__ : value[i] for i, mtr in enumerate(self.metrics)})
+                    log.update({mtr.__name__: value[i] for i, mtr in enumerate(self.metrics)})
                 elif key == 'val_metrics':
-                    log.update({'val_' + mtr.__name__ : value[i] for i, mtr in enumerate(self.metrics)})
+                    log.update({'val_' + mtr.__name__: value[i] for i, mtr in enumerate(self.metrics)})
                 else:
                     log[key] = value
 
@@ -99,8 +106,8 @@ class BaseTrainer:
             best = False
             if self.monitor_mode != 'off':
                 try:
-                    if  (self.monitor_mode == 'min' and log[self.monitor] < self.monitor_best) or\
-                        (self.monitor_mode == 'max' and log[self.monitor] > self.monitor_best):
+                    if (self.monitor_mode == 'min' and log[self.monitor] < self.monitor_best) or\
+                            (self.monitor_mode == 'max' and log[self.monitor] > self.monitor_best):
                         self.monitor_best = log[self.monitor]
                         best = True
                 except KeyError:
@@ -108,7 +115,7 @@ class BaseTrainer:
                         msg = "Warning: Can\'t recognize metric named '{}' ".format(self.monitor)\
                             + "for performance monitoring. model_best checkpoint won\'t be updated."
                         self.logger.warning(msg)
-            if epoch % self.save_freq == 0:
+            if epoch % self.save_freq == 0 or best:
                 self._save_checkpoint(epoch, save_best=best)
 
     def _train_epoch(self, epoch):
@@ -141,9 +148,10 @@ class BaseTrainer:
         torch.save(state, filename)
         self.logger.info("Saving checkpoint: {} ...".format(filename))
         if save_best:
-            best_path = os.path.join(self.checkpoint_dir, 'model_best.pth')
+            f = f'model_best_{epoch}.pth'
+            best_path = os.path.join(self.checkpoint_dir, f)
             torch.save(state, best_path)
-            self.logger.info("Saving current best: {} ...".format('model_best.pth'))
+            self.logger.info("Saving current best: {} ...".format(f))
 
     def _resume_checkpoint(self, resume_path):
         """
@@ -158,16 +166,16 @@ class BaseTrainer:
 
         # load architecture params from checkpoint.
         if checkpoint['config']['arch'] != self.config['arch']:
-            self.logger.warning('Warning: Architecture configuration given in config file is different from that of checkpoint. ' + \
+            self.logger.warning('Warning: Architecture configuration given in config file is different from that of checkpoint. ' +
                                 'This may yield an exception while state_dict is being loaded.')
         self.model.load_state_dict(checkpoint['state_dict'])
 
-        # load optimizer state from checkpoint only when optimizer type is not changed. 
+        # load optimizer state from checkpoint only when optimizer type is not changed.
         if checkpoint['config']['optimizer']['type'] != self.config['optimizer']['type']:
-            self.logger.warning('Warning: Optimizer type given in config file is different from that of checkpoint. ' + \
+            self.logger.warning('Warning: Optimizer type given in config file is different from that of checkpoint. ' +
                                 'Optimizer parameters not being resumed.')
         else:
             self.optimizer.load_state_dict(checkpoint['optimizer'])
-    
+
         self.train_logger = checkpoint['logger']
         self.logger.info("Checkpoint '{}' (epoch {}) loaded".format(resume_path, self.start_epoch))
