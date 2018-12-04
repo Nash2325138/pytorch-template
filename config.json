@@ -45,7 +45,7 @@
     },
     "trainer_args": {
 
-    }
+    },
     "visualization":{
         "tensorboardX": true,
         "log_dir": "saved/runs"
