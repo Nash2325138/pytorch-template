@@ -1,7 +1,13 @@
 import json
 import logging
 
-logging.basicConfig(level=logging.INFO, format='')
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(message)s',
+    datefmt='%m-%d %H:%M:%S',
+)
+
 
 class Logger:
     """
@@ -10,6 +16,7 @@ class Logger:
     Note:
         Used by BaseTrainer to save training history.
     """
+
     def __init__(self):
         self.entries = {}
 

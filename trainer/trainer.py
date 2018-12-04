@@ -11,6 +11,7 @@ class Trainer(BaseTrainer):
     Note:
         Inherited from BaseTrainer.
     """
+
     def __init__(self, model, loss, metrics, optimizer, resume, config,
                  data_loader, valid_data_loader=None, lr_scheduler=None, train_logger=None):
         super(Trainer, self).__init__(model, loss, metrics, optimizer, resume, config, train_logger)
@@ -45,7 +46,7 @@ class Trainer(BaseTrainer):
             The metrics in log must have the key 'metrics'.
         """
         self.model.train()
-    
+
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
         for batch_idx, (data, target) in enumerate(self.data_loader):
