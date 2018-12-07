@@ -1,7 +1,9 @@
 import numpy as np
 import torch
 from torchvision.utils import make_grid
+
 from base import BaseTrainer
+from utils.util import get_lr
 
 
 class Trainer(BaseTrainer):
@@ -46,6 +48,7 @@ class Trainer(BaseTrainer):
             The metrics in log must have the key 'metrics'.
         """
         self.model.train()
+        self.logger.info(f'Current lr:{get_lr(self.optimizer)}')
 
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
