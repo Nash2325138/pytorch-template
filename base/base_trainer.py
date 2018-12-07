@@ -61,7 +61,7 @@ class BaseTrainer:
             self._resume_checkpoint(resume)
 
     def _prepare_device(self, n_gpu_use):
-        """ 
+        """
         setup GPU device if available, move model into configured device
         """
         n_gpu = torch.cuda.device_count()
@@ -144,14 +144,10 @@ class BaseTrainer:
             'monitor_best': self.monitor_best,
             'config': self.config
         }
-        filename = os.path.join(self.checkpoint_dir, 'checkpoint-epoch{}.pth'.format(epoch))
+        best_str = '-best' if save_best else ''
+        filename = os.path.join(self.checkpoint_dir, f'checkpoint-epoch{epoch}{best_str}.pth')
         torch.save(state, filename)
         self.logger.info("Saving checkpoint: {} ...".format(filename))
-        if save_best:
-            f = f'model_best_{epoch}.pth'
-            best_path = os.path.join(self.checkpoint_dir, f)
-            torch.save(state, best_path)
-            self.logger.info("Saving current best: {} ...".format(f))
 
     def _resume_checkpoint(self, resume_path):
         """
