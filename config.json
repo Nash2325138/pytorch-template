@@ -21,13 +21,18 @@
     },
     "optimizer": {
         "type": "Adam",
-        "args":{
-            "lr": 0.05,
+        "args": {
+            "lr": 0.005,
             "weight_decay": 0,
             "amsgrad": true
         }
     },
-    "loss": "nll_loss",
+    "loss": {
+        "type": "CrossEntropyLoss",
+        "args": {
+
+        }
+    },
     "metrics": [
         "top1_acc", "top3_acc"
     ],

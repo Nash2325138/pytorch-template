@@ -25,8 +25,10 @@ def main(config, resume):
     model = get_instance(module_arch, 'arch', config)
     model.summary()
 
-    # get function handles of loss and metrics
-    loss = getattr(module_loss, config['loss'])
+    # setup loss instance
+    loss = get_instance(module_loss, 'loss', config)
+
+    # get function handles and metrics
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
