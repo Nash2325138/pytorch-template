@@ -25,8 +25,14 @@ def main(config, resume):
     model = get_instance(module_arch, 'arch', config)
     model.summary()
 
-    # setup loss instance
-    loss = get_instance(module_loss, 'loss', config)
+    # setup instances of losses
+    losses = {
+        entry['type']: (
+            getattr(module_loss, entry['type'])(**entry['args']),
+            entry['weight']
+        )
+        for entry in config['losses']
+    }
 
     # get function handles and metrics
     metrics = [getattr(module_metric, met) for met in config['metrics']]
@@ -36,7 +42,7 @@ def main(config, resume):
     optimizer = get_instance(torch.optim, 'optimizer', config, trainable_params)
     lr_scheduler = get_instance(torch.optim.lr_scheduler, 'lr_scheduler', config, optimizer)
 
-    trainer = Trainer(model, loss, metrics, optimizer,
+    trainer = Trainer(model, losses, metrics, optimizer,
                       resume=resume,
                       config=config,
                       data_loader=data_loader,

@@ -27,12 +27,15 @@
             "amsgrad": true
         }
     },
-    "loss": {
-        "type": "CrossEntropyLoss",
-        "args": {
+    "losses": [
+        {
+            "type": "CrossEntropyLoss",
+            "weight": 1,
+            "args": {
 
+            }
         }
-    },
+    ],
     "metrics": [
         "top1_acc", "top3_acc"
     ],
@@ -52,7 +55,7 @@
         "monitor_mode": "min"
     },
     "trainer_args": {
-
+        "show_all_loss": false
     },
     "visualization":{
         "tensorboardX": true,

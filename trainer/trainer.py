@@ -14,15 +14,17 @@ class Trainer(BaseTrainer):
         Inherited from BaseTrainer.
     """
 
-    def __init__(self, model, loss, metrics, optimizer, resume, config,
-                 data_loader, valid_data_loader=None, lr_scheduler=None, train_logger=None):
-        super(Trainer, self).__init__(model, loss, metrics, optimizer, resume, config, train_logger)
+    def __init__(self, model, losses, metrics, optimizer, resume, config,
+                 data_loader, valid_data_loader=None, lr_scheduler=None, train_logger=None,
+                 show_all_loss=False):
+        super(Trainer, self).__init__(model, losses, metrics, optimizer, resume, config, train_logger)
         self.config = config
         self.data_loader = data_loader
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
         self.log_step = int(np.sqrt(data_loader.batch_size))
+        self.show_all_loss = show_all_loss
 
     def _eval_metrics(self, output, target):
         acc_metrics = np.zeros(len(self.metrics))
@@ -58,12 +60,19 @@ class Trainer(BaseTrainer):
 
             self.optimizer.zero_grad()
             output = self.model(data)
-            loss = self.loss(output, target)
+            losses = {
+                loss_name: loss_module(output, target) * weight
+                for loss_name, (loss_module, weight) in self.losses.items()
+            }
+            loss = sum(losses.values())
             loss.backward()
             self.optimizer.step()
 
             self.writer.set_step((epoch - 1) * len(self.data_loader) + batch_idx)
-            self.writer.add_scalar('loss', loss.item())
+            if self.show_all_loss:
+                for loss_name, loss_value in losses.items():
+                    self.writer.add_scalar(f'loss/{loss_name}', loss_value.item())
+            self.writer.add_scalar('loss/total_loss', loss.item())
             total_loss += loss.item()
             total_metrics += self._eval_metrics(output, target)
 
@@ -107,10 +116,16 @@ class Trainer(BaseTrainer):
                 data, target = data.to(self.device), target.to(self.device)
 
                 output = self.model(data)
-                loss = self.loss(output, target)
-
+                losses = {
+                    loss_name: loss_module(output, target) * weight
+                    for loss_name, (loss_module, weight) in self.losses.items()
+                }
+                loss = sum(losses.values())
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                self.writer.add_scalar('loss', loss.item())
+                if self.show_all_loss:
+                    for loss_name, loss_value in losses.items():
+                        self.writer.add_scalar(f'loss/{loss_name}', loss_value.item())
+                self.writer.add_scalar('loss/total_loss', loss.item())
                 total_val_loss += loss.item()
                 total_val_metrics += self._eval_metrics(output, target)
                 self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
