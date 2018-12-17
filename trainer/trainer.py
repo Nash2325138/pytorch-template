@@ -47,6 +47,7 @@ class Trainer(BaseTrainer):
 
             The metrics in log must have the key 'metrics'.
         """
+        np.random.seed()
         self.model.train()
         self.logger.info(f'Current lr:{get_lr(self.optimizer)}')
 

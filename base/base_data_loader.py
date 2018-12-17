@@ -4,6 +4,13 @@ from torch.utils.data.dataloader import default_collate
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
+# Add this to initialize workers of dataloader to avoid fixed numpy random
+# seeds for each training epoch. For a clearer explanation please refer to:
+# https://github.com/pytorch/pytorch/issues/5059
+def worker_init_fn(worker_id):
+    np.random.seed(np.random.get_state()[1][0] + worker_id)
+
+
 class BaseDataLoader(DataLoader):
     """
     Base class for all data loaders
@@ -25,7 +32,8 @@ class BaseDataLoader(DataLoader):
             'collate_fn': collate_fn,
             'num_workers': num_workers
         }
-        super(BaseDataLoader, self).__init__(sampler=self.sampler, **self.init_kwargs)
+        super(BaseDataLoader, self).__init__(sampler=self.sampler, **self.init_kwargs,
+                                             worker_init_fn=worker_init_fn)
 
     def _split_sampler(self, split):
         if split == 0.0:
