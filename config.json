@@ -55,7 +55,7 @@
         "monitor_mode": "min"
     },
     "trainer_args": {
-        "show_all_loss": false
+        "show_all_loss": true
     },
     "visualization":{
         "tensorboardX": true,

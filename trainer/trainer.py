@@ -56,23 +56,26 @@ class Trainer(BaseTrainer):
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
         for batch_idx, (data, target) in enumerate(self.data_loader):
+            self.writer.set_step((epoch - 1) * len(self.data_loader) + batch_idx)
             data, target = data.to(self.device), target.to(self.device)
 
             self.optimizer.zero_grad()
             output = self.model(data)
-            losses = {
-                loss_name: loss_module(output, target) * weight
-                for loss_name, (loss_module, weight) in self.losses.items()
-            }
+            losses = {}
+            for loss_name, loss_input in [
+                ('CrossEntropyLoss', (output, target)),
+            ]:
+                loss_instance, loss_weight = self.losses[loss_name]
+                if loss_weight <= 0.0:
+                    continue
+                losses[loss_name] = loss_instance(*loss_input) * loss_weight
+                if self.show_all_loss:
+                    self.writer.add_scalar(f'{loss_name}', losses[loss_name].item())
             loss = sum(losses.values())
             loss.backward()
             self.optimizer.step()
 
-            self.writer.set_step((epoch - 1) * len(self.data_loader) + batch_idx)
-            if self.show_all_loss:
-                for loss_name, loss_value in losses.items():
-                    self.writer.add_scalar(f'loss/{loss_name}', loss_value.item())
-            self.writer.add_scalar('loss/total_loss', loss.item())
+            self.writer.add_scalar('total_loss', loss.item())
             total_loss += loss.item()
             total_metrics += self._eval_metrics(output, target)
 
@@ -113,19 +116,24 @@ class Trainer(BaseTrainer):
         total_val_metrics = np.zeros(len(self.metrics))
         with torch.no_grad():
             for batch_idx, (data, target) in enumerate(self.valid_data_loader):
+                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 data, target = data.to(self.device), target.to(self.device)
 
                 output = self.model(data)
-                losses = {
-                    loss_name: loss_module(output, target) * weight
-                    for loss_name, (loss_module, weight) in self.losses.items()
-                }
+
+                losses = {}
+                for loss_name, loss_input in [
+                    ('CrossEntropyLoss', (output, target)),
+                ]:
+                    loss_instance, loss_weight = self.losses[loss_name]
+                    if loss_weight <= 0.0:
+                        continue
+                    losses[loss_name] = loss_instance(*loss_input) * loss_weight
+                    if self.show_all_loss:
+                        self.writer.add_scalar(f'{loss_name}', losses[loss_name].item())
                 loss = sum(losses.values())
-                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                if self.show_all_loss:
-                    for loss_name, loss_value in losses.items():
-                        self.writer.add_scalar(f'loss/{loss_name}', loss_value.item())
-                self.writer.add_scalar('loss/total_loss', loss.item())
+
+                self.writer.add_scalar('total_loss', loss.item())
                 total_val_loss += loss.item()
                 total_val_metrics += self._eval_metrics(output, target)
                 self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
