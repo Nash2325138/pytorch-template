@@ -12,11 +12,13 @@ class MnistModel(BaseModel):
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, num_classes)
 
-    def forward(self, x):
+    def forward(self, data):
+        x = data['frame']
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(-1, 320)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return x
+        output = {"logits": x}
+        return output

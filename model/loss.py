@@ -6,5 +6,7 @@ class CrossEntropyLoss(nn.Module):
         super(CrossEntropyLoss, self).__init__()
         self.loss_fn = nn.CrossEntropyLoss()
 
-    def forward(self, logits, target):
+    def forward(self, data, output):
+        logits = output['logits']
+        target = data['label']
         return self.loss_fn(logits, target)

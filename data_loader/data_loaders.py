@@ -27,7 +27,12 @@ class SampleDataSet(Dataset):
         )
 
     def __getitem__(self, index):
-        return self.dataset.__getitem__(index)
+        frame, label = self.dataset.__getitem__(index)
+        data = {
+            "frame": frame,
+            "label": label,
+        }
+        return data
 
     def __len__(self):
         return len(self.dataset)

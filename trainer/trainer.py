@@ -26,10 +26,10 @@ class Trainer(BaseTrainer):
         self.log_step = int(np.sqrt(data_loader.batch_size))
         self.show_all_loss = show_all_loss
 
-    def _eval_metrics(self, output, target):
+    def _eval_metrics(self, data, output):
         acc_metrics = np.zeros(len(self.metrics))
         for i, metric in enumerate(self.metrics):
-            acc_metrics[i] += metric(output, target)
+            acc_metrics[i] += metric(data, output)
             self.writer.add_scalar(f'{metric.__name__}', acc_metrics[i])
         return acc_metrics
 
@@ -55,29 +55,28 @@ class Trainer(BaseTrainer):
 
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
-        for batch_idx, (data, target) in enumerate(self.data_loader):
+        for batch_idx, data in enumerate(self.data_loader):
             self.writer.set_step((epoch - 1) * len(self.data_loader) + batch_idx)
-            data, target = data.to(self.device), target.to(self.device)
+            for key in data.keys():
+                data[key] = data[key].to(self.device)
 
             self.optimizer.zero_grad()
             output = self.model(data)
-            losses = {}
-            for loss_name, loss_input in [
-                ('CrossEntropyLoss', (output, target)),
-            ]:
-                loss_instance, loss_weight = self.losses[loss_name]
+
+            losses = []
+            for loss_name, (loss_instance, loss_weight) in self.losses.items():
                 if loss_weight <= 0.0:
                     continue
-                losses[loss_name] = loss_instance(*loss_input) * loss_weight
-                if self.show_all_loss:
-                    self.writer.add_scalar(f'{loss_name}', losses[loss_name].item())
-            loss = sum(losses.values())
+                loss = loss_instance(data, output) * loss_weight
+                losses.append(loss)
+                self.writer.add_scalar(f'{loss_name}', loss.item())
+            loss = sum(losses)
             loss.backward()
             self.optimizer.step()
 
             self.writer.add_scalar('total_loss', loss.item())
             total_loss += loss.item()
-            total_metrics += self._eval_metrics(output, target)
+            total_metrics += self._eval_metrics(data, output)
 
             if self.verbosity >= 2 and batch_idx % self.log_step == 0:
                 self.logger.info('Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}'.format(
@@ -86,7 +85,7 @@ class Trainer(BaseTrainer):
                     self.data_loader.n_samples,
                     100.0 * batch_idx / len(self.data_loader),
                     loss.item()))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                self.writer.add_image('input', make_grid(data['frame'][0].cpu(), nrow=8, normalize=True))
 
         log = {
             'loss': total_loss / len(self.data_loader),
@@ -115,28 +114,25 @@ class Trainer(BaseTrainer):
         total_val_loss = 0
         total_val_metrics = np.zeros(len(self.metrics))
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
+            for batch_idx, data in enumerate(self.valid_data_loader):
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                data, target = data.to(self.device), target.to(self.device)
-
+                for key in data.keys():
+                    data[key] = data[key].to(self.device)
                 output = self.model(data)
 
-                losses = {}
-                for loss_name, loss_input in [
-                    ('CrossEntropyLoss', (output, target)),
-                ]:
-                    loss_instance, loss_weight = self.losses[loss_name]
+                losses = []
+                for loss_name, (loss_instance, loss_weight) in self.losses.items():
                     if loss_weight <= 0.0:
                         continue
-                    losses[loss_name] = loss_instance(*loss_input) * loss_weight
-                    if self.show_all_loss:
-                        self.writer.add_scalar(f'{loss_name}', losses[loss_name].item())
-                loss = sum(losses.values())
+                    loss = loss_instance(data, output) * loss_weight
+                    losses.append(loss)
+                    self.writer.add_scalar(f'{loss_name}', loss.item())
+                loss = sum(losses)
 
                 self.writer.add_scalar('total_loss', loss.item())
                 total_val_loss += loss.item()
-                total_val_metrics += self._eval_metrics(output, target)
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                total_val_metrics += self._eval_metrics(data, output)
+                self.writer.add_image('input', make_grid(data['frame'][0].cpu(), nrow=8, normalize=True))
 
         return {
             'val_loss': total_val_loss / len(self.valid_data_loader),
