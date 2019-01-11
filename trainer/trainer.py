@@ -63,14 +63,7 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad()
             output = self.model(data)
 
-            losses = []
-            for loss_name, (loss_instance, loss_weight) in self.losses.items():
-                if loss_weight <= 0.0:
-                    continue
-                loss = loss_instance(data, output) * loss_weight
-                losses.append(loss)
-                self.writer.add_scalar(f'{loss_name}', loss.item())
-            loss = sum(losses)
+            loss = self._get_loss(data, output)
             loss.backward()
             self.optimizer.step()
 
@@ -101,6 +94,17 @@ class Trainer(BaseTrainer):
 
         return log
 
+    def _get_loss(self, data, output):
+        losses = []
+        for loss_name, (loss_instance, loss_weight) in self.losses.items():
+            if loss_weight <= 0.0:
+                continue
+            loss = loss_instance(data, output) * loss_weight
+            losses.append(loss)
+            self.writer.add_scalar(f'{loss_name}', loss.item())
+        loss = sum(losses)
+        return loss
+
     def _valid_epoch(self, epoch):
         """
         Validate after training an epoch
@@ -120,14 +124,7 @@ class Trainer(BaseTrainer):
                     data[key] = data[key].to(self.device)
                 output = self.model(data)
 
-                losses = []
-                for loss_name, (loss_instance, loss_weight) in self.losses.items():
-                    if loss_weight <= 0.0:
-                        continue
-                    loss = loss_instance(data, output) * loss_weight
-                    losses.append(loss)
-                    self.writer.add_scalar(f'{loss_name}', loss.item())
-                loss = sum(losses)
+                loss = self._get_loss(data, output)
 
                 self.writer.add_scalar('total_loss', loss.item())
                 total_val_loss += loss.item()
