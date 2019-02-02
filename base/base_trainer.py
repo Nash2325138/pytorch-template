@@ -20,8 +20,6 @@ class BaseTrainer:
         # setup GPU device if available, move model into configured device
         self.device, device_ids = self._prepare_device(config['n_gpu'])
         self.model = model.to(self.device)
-        if len(device_ids) > 1:
-            self.model = torch.nn.DataParallel(model, device_ids=device_ids)
 
         self.losses = losses
         self.metrics = metrics
@@ -59,6 +57,9 @@ class BaseTrainer:
 
         if resume:
             self._resume_checkpoint(resume)
+
+        if len(device_ids) > 1:
+            self.model = torch.nn.DataParallel(model, device_ids=device_ids)
 
     def _prepare_device(self, n_gpu_use):
         """
@@ -135,15 +136,23 @@ class BaseTrainer:
         :param save_best: if True, rename the saved checkpoint to 'model_best.pth'
         """
         arch = type(self.model).__name__
+
+        # assure that we save the model state without DataParallel module
+        if isinstance(self.model, torch.nn.DataParallel):
+            # get the original state out from DataParallel module
+            model_state = self.model.module.state_dict()
+        else:
+            model_state = self.model.state_dict()
         state = {
             'arch': arch,
             'epoch': epoch,
             'logger': self.train_logger,
-            'state_dict': self.model.state_dict(),
+            'state_dict': model_state,
             'optimizer': self.optimizer.state_dict(),
             'monitor_best': self.monitor_best,
             'config': self.config
         }
+
         best_str = '-best' if save_best else ''
         filename = os.path.join(self.checkpoint_dir, f'checkpoint-epoch{epoch}{best_str}.pth')
         torch.save(state, filename)
