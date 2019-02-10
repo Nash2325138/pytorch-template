@@ -93,6 +93,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 assert args.pattern is not None, 'Pattern must be provided.'
+assert args.pattern != '', 'Pattern can not be empty.'
 
 
 if __name__ == '__main__':
