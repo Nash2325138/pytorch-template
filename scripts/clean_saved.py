@@ -32,10 +32,10 @@ def collect_satisfied(args):
 
 def ask_one_by_one(args, collected):
     for path in collected:
-        module_name = basename(dirname(path))
+        exp_name = basename(dirname(path))
         exp_time = basename(path)
 
-        runs_dir = os.path.join(args.saved_dir, 'runs', module_name, exp_time)
+        runs_dir = os.path.join(args.saved_dir, 'runs', exp_name, exp_time)
         print('\nDelete the following directories?')
         print(path)
         if os.path.exists(runs_dir):
@@ -50,16 +50,27 @@ def ask_one_by_one(args, collected):
             print('No deletion performed.')
 
 
+def clean_empty_exp(args):
+    def walk_clean(root):
+        for exp_path in glob(os.path.join(root, '*')):
+            assert os.path.isdir(exp_path)
+            if len(os.listdir(exp_path)) == 0:
+                os.rmdir(exp_path)
+
+    walk_clean(args.saved_dir)
+    walk_clean(os.path.join(args.saved_dir, 'runs'))
+
+
 def ask_all_in_once(args, collected):
     to_delete = []
     print('The following directories will be deleted.')
     for path in collected:
-        module_name = basename(dirname(path))
+        exp_name = basename(dirname(path))
         exp_time = basename(path)
         to_delete.append(path)
         print(path)
 
-        runs_dir = os.path.join(args.saved_dir, 'runs', module_name, exp_time)
+        runs_dir = os.path.join(args.saved_dir, 'runs', exp_name, exp_time)
         if os.path.exists(runs_dir):
             to_delete.append(runs_dir)
             print(runs_dir)
@@ -106,4 +117,4 @@ if __name__ == '__main__':
         ask_all_in_once(args, collected)
     else:
         ask_one_by_one(args, collected)
-
+    clean_empty_exp(args)
