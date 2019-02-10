@@ -98,6 +98,10 @@ assert args.pattern != '', 'Pattern can not be empty.'
 
 if __name__ == '__main__':
     collected = collect_satisfied(args)
+    if len(collected) == 0:
+        print('No satisfied directory.')
+        exit()
+
     if args.all_in_once:
         ask_all_in_once(args, collected)
     else:
