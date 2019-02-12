@@ -11,7 +11,7 @@
         "args":{
             "batch_size": 128,
             "shuffle": true,
-            "validation_split": 0.1,
+            "validation_split": 0.0,
             "num_workers": 2,
             "dataset_args": {
                 "data_dir": "data/",
@@ -55,7 +55,8 @@
         "monitor_mode": "min"
     },
     "trainer_args": {
-        "show_all_loss": true
+        "show_all_loss": true,
+        "log_step": 40
     },
     "visualization":{
         "tensorboardX": true,
