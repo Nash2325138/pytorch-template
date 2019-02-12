@@ -26,10 +26,10 @@ class Trainer(BaseTrainer):
         self.log_step = int(np.sqrt(data_loader.batch_size))
         self.show_all_loss = show_all_loss
 
-    def _eval_metrics(self, data, output):
+    def _eval_metrics(self, data_input, model_output):
         acc_metrics = np.zeros(len(self.metrics))
         for i, metric in enumerate(self.metrics):
-            acc_metrics[i] += metric(data, output)
+            acc_metrics[i] += metric(data_input, model_output)
             self.writer.add_scalar(f'{metric.__name__}', acc_metrics[i])
         return acc_metrics
 
@@ -55,21 +55,21 @@ class Trainer(BaseTrainer):
 
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
-        for batch_idx, data in enumerate(self.data_loader):
+        for batch_idx, data_input in enumerate(self.data_loader):
             self.writer.set_step((epoch - 1) * len(self.data_loader) + batch_idx)
-            for key in data.keys():
-                data[key] = data[key].to(self.device)
+            for key in data_input.keys():
+                data_input[key] = data_input[key].to(self.device)
 
             self.optimizer.zero_grad()
-            output = self.model(data)
+            model_output = self.model(data_input)
 
-            loss = self._get_loss(data, output)
+            loss = self._get_loss(data_input, model_output)
             loss.backward()
             self.optimizer.step()
 
             self.writer.add_scalar('total_loss', loss.item())
             total_loss += loss.item()
-            total_metrics += self._eval_metrics(data, output)
+            total_metrics += self._eval_metrics(data_input, model_output)
 
             if self.verbosity >= 2 and batch_idx % self.log_step == 0:
                 self.logger.info('Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}'.format(
@@ -78,7 +78,7 @@ class Trainer(BaseTrainer):
                     self.data_loader.n_samples,
                     100.0 * batch_idx / len(self.data_loader),
                     loss.item()))
-                self.writer.add_image('input', make_grid(data['frame'][0].cpu(), nrow=8, normalize=True))
+                self._write_images(data_input, model_output)
 
         log = {
             'loss': total_loss / len(self.data_loader),
@@ -94,12 +94,12 @@ class Trainer(BaseTrainer):
 
         return log
 
-    def _get_loss(self, data, output):
+    def _get_loss(self, data_input, model_output):
         losses = []
         for loss_name, (loss_instance, loss_weight) in self.losses.items():
             if loss_weight <= 0.0:
                 continue
-            loss = loss_instance(data, output) * loss_weight
+            loss = loss_instance(data_input, model_output) * loss_weight
             losses.append(loss)
             self.writer.add_scalar(f'{loss_name}', loss.item())
         loss = sum(losses)
@@ -118,20 +118,23 @@ class Trainer(BaseTrainer):
         total_val_loss = 0
         total_val_metrics = np.zeros(len(self.metrics))
         with torch.no_grad():
-            for batch_idx, data in enumerate(self.valid_data_loader):
+            for batch_idx, data_input in enumerate(self.valid_data_loader):
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                for key in data.keys():
-                    data[key] = data[key].to(self.device)
-                output = self.model(data)
+                for key in data_input.keys():
+                    data_input[key] = data_input[key].to(self.device)
+                model_output = self.model(data_input)
 
-                loss = self._get_loss(data, output)
+                loss = self._get_loss(data_input, model_output)
 
                 self.writer.add_scalar('total_loss', loss.item())
                 total_val_loss += loss.item()
-                total_val_metrics += self._eval_metrics(data, output)
-                self.writer.add_image('input', make_grid(data['frame'][0].cpu(), nrow=8, normalize=True))
+                total_val_metrics += self._eval_metrics(data_input, model_output)
+                self._write_images(data_input, model_output)
 
         return {
             'val_loss': total_val_loss / len(self.valid_data_loader),
             'val_metrics': (total_val_metrics / len(self.valid_data_loader)).tolist()
         }
+
+    def _write_images(self, data_input, model_output):
+        self.writer.add_image('input', make_grid(data_input['frame'][0].cpu(), nrow=8, normalize=True))
