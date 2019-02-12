@@ -51,7 +51,7 @@ class Trainer(BaseTrainer):
         """
         np.random.seed()
         self.model.train()
-        self.logger.info(f'Current lr:{get_lr(self.optimizer)}')
+        self.logger.info(f'Current lr: {get_lr(self.optimizer)}')
 
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
