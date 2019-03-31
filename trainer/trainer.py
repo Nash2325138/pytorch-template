@@ -105,12 +105,12 @@ class Trainer(BaseTrainer):
 
     def _get_loss(self, data_input, model_output):
         losses = []
-        for loss_name, (loss_instance, loss_weight) in self.losses.items():
-            if loss_weight <= 0.0:
+        for loss_instance in self.losses:
+            if loss_instance.weight <= 0.0:
                 continue
-            loss = loss_instance(data_input, model_output) * loss_weight
+            loss = loss_instance(data_input, model_output)
             losses.append(loss)
-            self.writer.add_scalar(f'{loss_name}', loss.item())
+            self.writer.add_scalar(f'{loss_instance.nick_name}', loss.item())
         loss = sum(losses)
         return loss
 

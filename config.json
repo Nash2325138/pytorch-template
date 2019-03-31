@@ -30,9 +30,9 @@
     "losses": [
         {
             "type": "CrossEntropyLoss",
-            "weight": 1,
             "args": {
-
+                "weight": 1,
+                "nick_name": "cross_entropy_loss"
             }
         }
     ],
