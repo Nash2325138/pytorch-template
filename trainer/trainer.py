@@ -33,6 +33,16 @@ class Trainer(BaseTrainer):
             self.writer.add_scalar(f'{metric.__name__}', acc_metrics[i])
         return acc_metrics
 
+    def _to_device(self, data_input):
+        new_data_input = {}
+        for key in data_input.keys():
+            # Some data yeilded by loader may not be tensor
+            if torch.is_tensor(data_input[key]):
+                new_data_input[key] = data_input[key].to(self.device)
+            else:
+                new_data_input[key] = data_input[key]
+        return new_data_input
+
     def _train_epoch(self, epoch):
         """
         Training logic for an epoch
@@ -57,8 +67,7 @@ class Trainer(BaseTrainer):
         total_metrics = np.zeros(len(self.metrics))
         for batch_idx, data_input in enumerate(self.data_loader):
             self.writer.set_step((epoch - 1) * len(self.data_loader) + batch_idx)
-            for key in data_input.keys():
-                data_input[key] = data_input[key].to(self.device)
+            data_input = self._to_device(data_input)
 
             self.optimizer.zero_grad()
             model_output = self.model(data_input)
@@ -120,8 +129,7 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             for batch_idx, data_input in enumerate(self.valid_data_loader):
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                for key in data_input.keys():
-                    data_input[key] = data_input[key].to(self.device)
+                data_input = self._to_device(data_input)
                 model_output = self.model(data_input)
 
                 loss = self._get_loss(data_input, model_output)

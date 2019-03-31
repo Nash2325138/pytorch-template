@@ -19,7 +19,10 @@ def main(config, resume):
 
     # setup data_loader instances
     data_loader = get_instance(module_data, 'data_loader', config)
-    valid_data_loader = data_loader.split_validation()
+    if 'valid_data_loader' in config.keys():
+        data_loader = get_instance(module_data, 'valid_data_loader', config)
+    else:
+        valid_data_loader = data_loader.split_validation()
 
     # build model architecture
     model = get_instance(module_arch, 'arch', config)
@@ -34,9 +37,11 @@ def main(config, resume):
         for entry in config['losses']
     }
 
-    # get function handles and metrics
-    metrics = [getattr(module_metric, met) for met in config['metrics']]
-
+    # set up instances of metrics
+    metrics = [
+        getattr(module_metric, entry['type'])(**entry['args'])
+        for entry in config['metrics']
+    ]
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = get_instance(torch.optim, 'optimizer', config, trainable_params)
